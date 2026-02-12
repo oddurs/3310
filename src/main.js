@@ -10,7 +10,10 @@ import { createSounds } from './audio/sounds.js'
 import { createAmbient } from './audio/ambient.js'
 import { createRadio } from './audio/radio.js'
 import { createThemeManager } from './scene/themes.js'
-import { createDebug } from './utils/debug.js'
+// Debug tools loaded only in dev mode (tree-shaken from production build)
+const loadDebug = import.meta.env.DEV
+  ? () => import('./utils/debug.js').then(m => m.createDebug)
+  : () => Promise.resolve(null)
 import { preloadSplash } from './game/splash.js'
 import { createPostProcessing } from './scene/postprocessing.js'
 import { createCameraController } from './scene/camera.js'
@@ -67,30 +70,37 @@ async function init() {
   // Post-processing
   const { composer, bloomPass, vignettePass, colorGradePass } = createPostProcessing(renderer, scene, camera)
 
-  // Debug panel (toggle with backtick key)
-  const debug = createDebug({
-    bloomPass,
-    vignettePass,
-    colorGradePass,
-    screenMesh,
-    screenMaterial,
-    screenGlow: null,
-    backingMesh,
-    phoneMaterial,
-    renderer,
-    camera,
-    buttons,
-    interaction,
-    meshList,
-    getShaderRef,
-    getScreenShaderRef,
-    softKey,
-    lights,
-    scene,
-  })
+  // Debug panel (dev mode only — stripped from production build)
+  let debug = {}
+  const createDebugFn = await loadDebug()
+  if (createDebugFn) {
+    debug = createDebugFn({
+      bloomPass,
+      vignettePass,
+      colorGradePass,
+      screenMesh,
+      screenMaterial,
+      screenGlow: null,
+      backingMesh,
+      phoneMaterial,
+      renderer,
+      camera,
+      buttons,
+      interaction,
+      meshList,
+      getShaderRef,
+      getScreenShaderRef,
+      softKey,
+      lights,
+      scene,
+    })
+  }
 
   // Hide HTML loading overlay — splash screen is now on the LCD
   loadingEl.classList.add('hidden')
+
+  // Preload remaining environments in background (one at a time)
+  setTimeout(() => themes.preloadRest(), 2000)
 
   // Draw splash screen on LCD (game starts in 'splash' state)
   lcd.draw(game.getState())

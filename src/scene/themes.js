@@ -1,36 +1,38 @@
 import * as THREE from 'three'
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js'
 
+const B = import.meta.env.BASE_URL
+
 const THEMES = [
   {
     id: 'sunflowers',
     label: 'Sunflowers',
-    hdr: '/env/sunflowers_2k.hdr',
-    backplate: '/env/sunflowers_8k.jpg',
+    hdr: B + 'env/sunflowers_2k.hdr',
+    backplate: B + 'env/sunflowers_4k.jpg',
   },
   {
     id: 'shanghai',
     label: 'Shanghai Night',
-    hdr: '/env/shanghai_bund_2k.hdr',
-    backplate: '/env/shanghai_bund_8k.jpg',
+    hdr: B + 'env/shanghai_bund_2k.hdr',
+    backplate: B + 'env/shanghai_bund_4k.jpg',
   },
   {
     id: 'autumn_park',
     label: 'Autumn Park',
-    hdr: '/env/autumn_park_2k.hdr',
-    backplate: '/env/autumn_park_8k.jpg',
+    hdr: B + 'env/autumn_park_2k.hdr',
+    backplate: B + 'env/autumn_park_4k.jpg',
   },
   {
     id: 'beach',
     label: 'Beach Day',
-    hdr: '/env/spiaggia_di_mondello_2k.hdr',
-    backplate: '/env/spiaggia_di_mondello_8k.jpg',
+    hdr: B + 'env/spiaggia_di_mondello_2k.hdr',
+    backplate: B + 'env/spiaggia_di_mondello_4k.jpg',
   },
   {
     id: 'golden_sunset',
     label: 'Golden Sunset',
-    hdr: '/env/kloppenheim_06_2k.hdr',
-    backplate: '/env/kloppenheim_06_8k.jpg',
+    hdr: B + 'env/kloppenheim_06_2k.hdr',
+    backplate: B + 'env/kloppenheim_06_4k.jpg',
   },
 ]
 
@@ -104,13 +106,31 @@ export function createThemeManager(scene) {
     return THEMES[currentIndex].label
   }
 
-  // Load initial theme
+  // Load initial theme only — preload others after scene is interactive
   loadTheme(0)
+
+  function preloadRest() {
+    let i = 1
+    function next() {
+      if (i >= THEMES.length) return
+      const idx = i++
+      const theme = THEMES[idx]
+      if (cache[theme.id]) { next(); return }
+      let env = null, bg = null, done = 0
+      function check() {
+        if (++done === 2) { cache[theme.id] = { env, bg }; next() }
+      }
+      rgbeLoader.load(theme.hdr, (t) => { t.mapping = THREE.EquirectangularReflectionMapping; env = t; check() })
+      texLoader.load(theme.backplate, (t) => { t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace; bg = t; check() })
+    }
+    next()
+  }
 
   return {
     next,
     prev,
     goTo,
+    preloadRest,
     getCurrentTheme() { return THEMES[currentIndex] },
     getCurrentIndex() { return currentIndex },
     onChange(cb) { onChangeCallback = cb },

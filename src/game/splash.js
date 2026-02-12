@@ -2,7 +2,7 @@
 // as a 1-bit-per-pixel bitmap at 84×48 Nokia LCD resolution.
 // The source logo.png is 216×154 (2× of 108×77 native).
 
-const LOGO_URL = '/images/snake2_logo.png'
+const LOGO_URL = import.meta.env.BASE_URL + 'images/snake2_logo.png'
 
 let _splashImage = null
 let _bitmap = null

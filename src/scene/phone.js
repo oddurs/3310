@@ -6,10 +6,11 @@ export function loadPhone(scene, lcdTexture) {
     const loader = new FBXLoader()
     const textureLoader = new THREE.TextureLoader()
 
-    const albedo = textureLoader.load('/textures/nokia_3310_Albedo.png')
-    const normal = textureLoader.load('/textures/nokia_3310_Normal.png')
-    const metalness = textureLoader.load('/textures/nokia_3310_Metalness.png')
-    const roughness = textureLoader.load('/textures/nokia_3310_Roughness.png')
+    const base = import.meta.env.BASE_URL
+    const albedo = textureLoader.load(base + 'textures/nokia_3310_Albedo_1k.png')
+    const normal = textureLoader.load(base + 'textures/nokia_3310_Normal_1k.png')
+    const metalness = textureLoader.load(base + 'textures/nokia_3310_Metalness_1k.png')
+    const roughness = textureLoader.load(base + 'textures/nokia_3310_Roughness_1k.png')
 
     albedo.colorSpace = THREE.SRGBColorSpace
     normal.colorSpace = THREE.LinearSRGBColorSpace
@@ -17,7 +18,7 @@ export function loadPhone(scene, lcdTexture) {
     roughness.colorSpace = THREE.LinearSRGBColorSpace
 
     loader.load(
-      '/models/nokia3310.fbx',
+      base + 'models/nokia3310.fbx',
       (object) => {
         const phoneGroup = new THREE.Group()
 
