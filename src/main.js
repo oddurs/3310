@@ -1,3 +1,16 @@
+if (import.meta.env.PROD) {
+  const s = document.createElement('script')
+  s.async = true
+  s.src = 'https://us.i.posthog.com/static/array.js'
+  s.onload = () => {
+    window.posthog.init('phc_9fJafHFikn5gukXvF4e5nmSJLYa2f0UGbYKHQ1nxrGR', {
+      api_host: 'https://us.i.posthog.com',
+      person_profiles: 'anonymous',
+    })
+  }
+  document.head.appendChild(s)
+}
+
 import { createScene } from './scene/setup.js'
 import { loadPhone } from './scene/phone.js'
 import { createInteraction } from './scene/interaction.js'
