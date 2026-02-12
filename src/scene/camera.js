@@ -6,6 +6,7 @@ export function createCameraController(camera) {
   const introDuration = 2.5 // seconds
   let introElapsed = 0
   let introComplete = false
+  let introStarted = false
 
   // Smooth ease-out cubic: decelerates into final position
   function easeOutCubic(t) {
@@ -26,6 +27,7 @@ export function createCameraController(camera) {
 
   function update(dt) {
     // Camera intro pan
+    if (!introStarted) return
     if (!introComplete) {
       introElapsed += dt
       const t = Math.min(introElapsed / introDuration, 1)
@@ -42,6 +44,7 @@ export function createCameraController(camera) {
 
   return {
     update,
+    start() { introStarted = true },
     isIntroComplete() { return introComplete },
     getCurrentZoom() { return currentZoom },
   }

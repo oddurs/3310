@@ -106,8 +106,30 @@ export function createThemeManager(scene) {
     return THEMES[currentIndex].label
   }
 
-  // Load initial theme only — preload others after scene is interactive
-  loadTheme(0)
+  function loadInitial() {
+    return new Promise((resolve) => {
+      const theme = THEMES[0]
+      let env = null, bg = null, loaded = 0
+      function checkDone() {
+        if (++loaded === 2) {
+          cache[theme.id] = { env, bg }
+          applyTheme(env, bg)
+          resolve()
+        }
+      }
+      rgbeLoader.load(theme.hdr, (texture) => {
+        texture.mapping = THREE.EquirectangularReflectionMapping
+        env = texture
+        checkDone()
+      })
+      texLoader.load(theme.backplate, (texture) => {
+        texture.mapping = THREE.EquirectangularReflectionMapping
+        texture.colorSpace = THREE.SRGBColorSpace
+        bg = texture
+        checkDone()
+      })
+    })
+  }
 
   function preloadRest() {
     let i = 1
@@ -127,6 +149,7 @@ export function createThemeManager(scene) {
   }
 
   return {
+    loadInitial,
     next,
     prev,
     goTo,

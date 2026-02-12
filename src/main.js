@@ -1,13 +1,11 @@
 import { createScene } from './scene/setup.js'
 import { loadPhone } from './scene/phone.js'
-import { createEnvironment } from './scene/environment.js'
 import { createInteraction } from './scene/interaction.js'
 import { createGame } from './game/snake.js'
 import { createLCD } from './game/lcd.js'
 import { createInput } from './utils/input.js'
 import { createButtons } from './scene/buttons.js'
 import { createSounds } from './audio/sounds.js'
-import { createAmbient } from './audio/ambient.js'
 import { createRadio } from './audio/radio.js'
 import { createThemeManager } from './scene/themes.js'
 // Debug tools loaded only in dev mode (tree-shaken from production build)
@@ -32,7 +30,6 @@ async function init() {
   const game = createGame()
   const lcd = createLCD()
   const sounds = createSounds()
-  const ambient = createAmbient()
   const radio = createRadio()
   const input = createInput(game)
 
@@ -51,13 +48,11 @@ async function init() {
     onShare: () => sharePopup.show(),
   })
 
-  // Environment
-  createEnvironment(scene)
-
-  // Load phone model and splash image in parallel
+  // Load phone model, splash image, and initial environment in parallel
   const [phoneResult] = await Promise.all([
     loadPhone(scene, lcd.texture),
     preloadSplash(),
+    themes.loadInitial(),
   ])
   const { phone, meshList, screenMesh, screenMaterial, backingMesh, phoneMaterial, updateShader, getShaderRef, getScreenShaderRef } = phoneResult
 
@@ -98,18 +93,25 @@ async function init() {
     })
   }
 
-  // Hide HTML loading overlay — splash screen is now on the LCD
-  loadingEl.classList.add('hidden')
-
-  // Preload remaining environments in background (one at a time)
-  setTimeout(() => themes.preloadRest(), 2000)
+  // Camera controller (intro animation + scroll zoom)
+  const cameraCtrl = createCameraController(camera)
 
   // Draw splash screen on LCD (game starts in 'splash' state)
   lcd.draw(game.getState())
 
+  // Render one frame behind the spinner so shaders compile and scene is ready
+  composer.render()
+
+  // Fade out spinner, then start camera intro
+  loadingEl.classList.add('hidden')
+  cameraCtrl.start()
+
+  // Preload remaining environments in background (one at a time)
+  setTimeout(() => themes.preloadRest(), 2000)
+
   // Event handler for sounds and effects
   let audioEnabled = false
-  const eventHandler = createEventHandler(sounds, interaction, () => audioEnabled)
+  const eventHandler = createEventHandler(sounds, () => audioEnabled)
 
   // Enable audio and dismiss splash on first user interaction
   function onFirstInteraction() {
@@ -129,9 +131,6 @@ async function init() {
   setTimeout(() => {
     game.dismissSplash()
   }, 3000)
-
-  // Camera controller (intro animation + scroll zoom)
-  const cameraCtrl = createCameraController(camera)
 
   // Resize handler
   function onResize() {
