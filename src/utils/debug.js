@@ -1,4 +1,6 @@
 import GUI from 'lil-gui'
+import * as THREE from 'three'
+import { createLightDebug } from './light-debug.js'
 
 function copyText(text) {
   navigator.clipboard.writeText(text).then(
@@ -10,8 +12,11 @@ function copyText(text) {
 export function createDebug({
   bloomPass,
   vignettePass,
+  colorGradePass,
   screenMesh,
+  screenMaterial,
   screenGlow,
+  backingMesh,
   phoneMaterial,
   renderer,
   camera,
@@ -21,6 +26,8 @@ export function createDebug({
   getShaderRef,
   getScreenShaderRef,
   softKey,
+  lights,
+  scene,
 }) {
   const gui = new GUI({ title: 'Debug', width: 300 })
 
@@ -99,8 +106,8 @@ export function createDebug({
     get posZ() { return screenMesh.position.z },
     set posZ(v) { screenMesh.position.z = v },
     glowBase: 0.37,
-    get glowDistance() { return screenGlow.distance },
-    set glowDistance(v) { screenGlow.distance = v },
+    get glowDistance() { return screenGlow ? screenGlow.distance : 0 },
+    set glowDistance(v) { if (screenGlow) screenGlow.distance = v },
     copy() {
       copyText([
         `Screen:`,
@@ -119,6 +126,49 @@ export function createDebug({
   screenFolder.add(screen, 'glowDistance', 0, 10, 0.1).name('Glow distance')
   screenFolder.add(screen, 'copy').name('Copy values')
   screenFolder.close()
+
+  // =========================================================
+  // LCD Surface
+  // =========================================================
+  const lcdFolder = gui.addFolder('LCD Surface')
+  const lcd = {
+    get emissiveIntensity() { return screenMaterial.emissiveIntensity },
+    set emissiveIntensity(v) { screenMaterial.emissiveIntensity = v },
+    get roughness() { return screenMaterial.roughness },
+    set roughness(v) { screenMaterial.roughness = v },
+    get clearcoat() { return screenMaterial.clearcoat },
+    set clearcoat(v) { screenMaterial.clearcoat = v },
+    get clearcoatRoughness() { return screenMaterial.clearcoatRoughness },
+    set clearcoatRoughness(v) { screenMaterial.clearcoatRoughness = v },
+    get envMapIntensity() { return screenMaterial.envMapIntensity },
+    set envMapIntensity(v) { screenMaterial.envMapIntensity = v },
+    get contrast() { const s = getScreenShaderRef(); return s ? s.uniforms.lcdContrast.value : 1 },
+    set contrast(v) { const s = getScreenShaderRef(); if (s) s.uniforms.lcdContrast.value = v },
+    get brightness() { const s = getScreenShaderRef(); return s ? s.uniforms.lcdBrightness.value : 0 },
+    set brightness(v) { const s = getScreenShaderRef(); if (s) s.uniforms.lcdBrightness.value = v },
+    get toneMapped() { return screenMaterial.toneMapped },
+    set toneMapped(v) { screenMaterial.toneMapped = v; screenMaterial.needsUpdate = true },
+    copy() {
+      copyText([
+        `LCD Surface:`,
+        `  emissiveIntensity ${lcd.emissiveIntensity}  roughness ${lcd.roughness}`,
+        `  clearcoat ${lcd.clearcoat}  clearcoatRoughness ${lcd.clearcoatRoughness}`,
+        `  envMapIntensity ${lcd.envMapIntensity}`,
+        `  contrast ${lcd.contrast}  brightness ${lcd.brightness}`,
+        `  toneMapped ${lcd.toneMapped}`,
+      ].join('\n'))
+    },
+  }
+  lcdFolder.add(lcd, 'emissiveIntensity', 0, 3, 0.01).name('Emissive')
+  lcdFolder.add(lcd, 'contrast', 0, 3, 0.01).name('Contrast')
+  lcdFolder.add(lcd, 'brightness', -1, 1, 0.01).name('Brightness')
+  lcdFolder.add(lcd, 'roughness', 0, 1, 0.01).name('Roughness')
+  lcdFolder.add(lcd, 'clearcoat', 0, 1, 0.01).name('Clearcoat')
+  lcdFolder.add(lcd, 'clearcoatRoughness', 0, 1, 0.01).name('Clearcoat rough')
+  lcdFolder.add(lcd, 'envMapIntensity', 0, 2, 0.01).name('Env reflections')
+  lcdFolder.add(lcd, 'toneMapped').name('Tone mapped')
+  lcdFolder.add(lcd, 'copy').name('Copy values')
+  lcdFolder.close()
 
   // =========================================================
   // Post-processing
@@ -154,6 +204,54 @@ export function createDebug({
   postFolder.add(post, 'exposure', 0, 3, 0.01).name('Exposure')
   postFolder.add(post, 'copy').name('Copy values')
   postFolder.close()
+
+  // =========================================================
+  // Color Grading
+  // =========================================================
+  const PRESET_NAMES = ['None', 'Cinematic Warm', 'Cool Blue', 'Vintage', 'Noir', 'Teal & Orange', 'Cross Process', 'Faded Film']
+  const cgFolder = gui.addFolder('Color Grading')
+  const cg = {
+    presetName: PRESET_NAMES[0],
+    get intensity() { return colorGradePass.uniforms.intensity.value },
+    set intensity(v) { colorGradePass.uniforms.intensity.value = v },
+    get saturation() { return colorGradePass.uniforms.saturation.value },
+    set saturation(v) { colorGradePass.uniforms.saturation.value = v },
+    get temperature() { return colorGradePass.uniforms.temperature.value },
+    set temperature(v) { colorGradePass.uniforms.temperature.value = v },
+    get tint() { return colorGradePass.uniforms.tint.value },
+    set tint(v) { colorGradePass.uniforms.tint.value = v },
+    get gamma() { return colorGradePass.uniforms.gamma.value },
+    set gamma(v) { colorGradePass.uniforms.gamma.value = v },
+    get shadows() { return colorGradePass.uniforms.shadows.value },
+    set shadows(v) { colorGradePass.uniforms.shadows.value = v },
+    get highlights() { return colorGradePass.uniforms.highlights.value },
+    set highlights(v) { colorGradePass.uniforms.highlights.value = v },
+    copy() {
+      copyText([
+        `Color Grading:`,
+        `  preset ${cg.presetName}  intensity ${cg.intensity}`,
+        `  saturation ${cg.saturation}  temperature ${cg.temperature}  tint ${cg.tint}`,
+        `  gamma ${cg.gamma}  shadows ${cg.shadows}  highlights ${cg.highlights}`,
+      ].join('\n'))
+    },
+  }
+  cgFolder.add(cg, 'presetName', PRESET_NAMES).name('Preset').onChange(v => {
+    const idx = PRESET_NAMES.indexOf(v)
+    colorGradePass.uniforms.preset.value = idx
+    if (idx > 0 && cg.intensity === 0) {
+      cg.intensity = 0.7
+      cgFolder.controllersRecursive().forEach(c => c.updateDisplay())
+    }
+  })
+  cgFolder.add(cg, 'intensity', 0, 1, 0.01).name('Intensity')
+  cgFolder.add(cg, 'saturation', 0, 2, 0.01).name('Saturation')
+  cgFolder.add(cg, 'temperature', -2, 2, 0.01).name('Temperature')
+  cgFolder.add(cg, 'tint', -2, 2, 0.01).name('Tint')
+  cgFolder.add(cg, 'gamma', 0.2, 3, 0.01).name('Gamma')
+  cgFolder.add(cg, 'shadows', -1, 1, 0.01).name('Shadows')
+  cgFolder.add(cg, 'highlights', -1, 1, 0.01).name('Highlights')
+  cgFolder.add(cg, 'copy').name('Copy values')
+  cgFolder.close()
 
   // =========================================================
   // Phone Material
@@ -309,6 +407,37 @@ export function createDebug({
   tzFolder.close()
 
   // =========================================================
+  // Backing Plane (interior blocker behind screen)
+  // =========================================================
+  const bpFolder = gui.addFolder('Backing Plane')
+  const bp = {
+    get posZ() { return backingMesh.position.z },
+    set posZ(v) { backingMesh.position.z = v },
+    get scaleX() { return backingMesh.scale.x },
+    set scaleX(v) { backingMesh.scale.x = v },
+    get scaleY() { return backingMesh.scale.y },
+    set scaleY(v) { backingMesh.scale.y = v },
+    get color() { return '#' + backingMesh.material.color.getHexString() },
+    set color(v) { backingMesh.material.color.set(v) },
+    get visible() { return backingMesh.visible },
+    set visible(v) { backingMesh.visible = v },
+    copy() {
+      copyText([
+        `Backing Plane:`,
+        `  z ${bp.posZ}  scale (${bp.scaleX}, ${bp.scaleY})`,
+        `  color ${bp.color}  visible ${bp.visible}`,
+      ].join('\n'))
+    },
+  }
+  bpFolder.add(bp, 'posZ', -0.5, 0.5, 0.01).name('Z position')
+  bpFolder.add(bp, 'scaleX', 0.5, 3, 0.01).name('Scale X')
+  bpFolder.add(bp, 'scaleY', 0.5, 3, 0.01).name('Scale Y')
+  bpFolder.addColor(bp, 'color').name('Color')
+  bpFolder.add(bp, 'visible').name('Visible')
+  bpFolder.add(bp, 'copy').name('Copy values')
+  bpFolder.close()
+
+  // =========================================================
   // Dot Matrix Grid
   // =========================================================
   const dotFolder = gui.addFolder('Dot Matrix')
@@ -341,46 +470,48 @@ export function createDebug({
   dotFolder.close()
 
   // =========================================================
-  // Soft Key Light
+  // HDRI Environment Lighting
   // =========================================================
-  if (softKey) {
-    const skFolder = gui.addFolder('Soft Key Light')
-    const sk = {
-      get intensity() { return softKey.intensity },
-      set intensity(v) { softKey.intensity = v },
-      get distance() { return softKey.distance },
-      set distance(v) { softKey.distance = v },
-      get angle() { return softKey.angle },
-      set angle(v) { softKey.angle = v },
-      get penumbra() { return softKey.penumbra },
-      set penumbra(v) { softKey.penumbra = v },
-      get decay() { return softKey.decay },
-      set decay(v) { softKey.decay = v },
-      get posX() { return softKey.position.x },
-      set posX(v) { softKey.position.x = v },
-      get posY() { return softKey.position.y },
-      set posY(v) { softKey.position.y = v },
-      get posZ() { return softKey.position.z },
-      set posZ(v) { softKey.position.z = v },
-      copy() {
-        copyText([
-          `Soft Key Light:`,
-          `  intensity ${sk.intensity}  distance ${sk.distance}  decay ${sk.decay}`,
-          `  angle ${sk.angle.toFixed(3)}  penumbra ${sk.penumbra}`,
-          `  pos ${sk.posX} ${sk.posY} ${sk.posZ}`,
-        ].join('\n'))
-      },
-    }
-    skFolder.add(sk, 'intensity', 0, 10, 0.1)
-    skFolder.add(sk, 'distance', 0, 50, 1)
-    skFolder.add(sk, 'angle', 0, Math.PI / 2, 0.01).name('Angle (rad)')
-    skFolder.add(sk, 'penumbra', 0, 1, 0.01)
-    skFolder.add(sk, 'decay', 0, 3, 0.1)
-    skFolder.add(sk, 'posX', -10, 10, 0.1).name('Pos X')
-    skFolder.add(sk, 'posY', -10, 10, 0.1).name('Pos Y')
-    skFolder.add(sk, 'posZ', -10, 10, 0.1).name('Pos Z')
-    skFolder.add(sk, 'copy').name('Copy values')
-    skFolder.close()
+  const hdriFolder = gui.addFolder('HDRI Environment')
+  const hdri = {
+    get envIntensity() { return scene.environmentIntensity ?? 1.0 },
+    set envIntensity(v) { scene.environmentIntensity = v },
+    get envRotation() { return scene.environmentRotation?.y ?? 0 },
+    set envRotation(v) {
+      if (!scene.environmentRotation) scene.environmentRotation = new THREE.Euler()
+      scene.environmentRotation.y = v
+    },
+    get bgIntensity() { return scene.backgroundIntensity ?? 1.0 },
+    set bgIntensity(v) { scene.backgroundIntensity = v },
+    get bgBlurriness() { return scene.backgroundBlurriness ?? 0 },
+    set bgBlurriness(v) { scene.backgroundBlurriness = v },
+    get phoneEnvMap() { return phoneMaterial.envMapIntensity },
+    set phoneEnvMap(v) { phoneMaterial.envMapIntensity = v },
+    get exposure() { return renderer.toneMappingExposure },
+    set exposure(v) { renderer.toneMappingExposure = v },
+    copy() {
+      copyText([
+        `HDRI Environment:`,
+        `  envIntensity ${hdri.envIntensity}  bgIntensity ${hdri.bgIntensity}`,
+        `  bgBlurriness ${hdri.bgBlurriness}  envRotation ${hdri.envRotation.toFixed(2)}`,
+        `  phoneEnvMap ${hdri.phoneEnvMap}  exposure ${hdri.exposure}`,
+      ].join('\n'))
+    },
+  }
+  hdriFolder.add(hdri, 'envIntensity', 0, 5, 0.01).name('Env intensity')
+  hdriFolder.add(hdri, 'envRotation', -Math.PI, Math.PI, 0.01).name('Env rotation')
+  hdriFolder.add(hdri, 'bgIntensity', 0, 5, 0.01).name('BG intensity')
+  hdriFolder.add(hdri, 'bgBlurriness', 0, 1, 0.01).name('BG blurriness')
+  hdriFolder.add(hdri, 'phoneEnvMap', 0, 5, 0.01).name('Phone envMap')
+  hdriFolder.add(hdri, 'exposure', 0, 5, 0.01).name('Exposure')
+  hdriFolder.add(hdri, 'copy').name('Copy values')
+
+  // =========================================================
+  // Lighting (full suite with diagram + helpers + per-light controls)
+  // =========================================================
+  let lightDebug = null
+  if (lights && scene) {
+    lightDebug = createLightDebug(gui, scene, lights, screenGlow, camera)
   }
 
   // =========================================================
@@ -440,5 +571,5 @@ export function createDebug({
   // Start hidden
   gui.hide()
 
-  return gui
+  return { gui, lightDebug }
 }

@@ -18,18 +18,22 @@ export function createScene() {
   document.body.appendChild(renderer.domElement)
 
   // HDRI environment + backplate loaded by theme manager
+  scene.environmentIntensity = 1.91
+  scene.backgroundIntensity = 1.01
   RectAreaLightUniformsLib.init()
 
   // === PRODUCT LIGHTING — 2:1 contrast, soft key, strong rim ===
 
+  // HDRI environment provides primary lighting — extra lights off by default
+
   // KEY LIGHT — large soft octabox, 45° right, 45° down
-  const keyLight = new THREE.RectAreaLight(0xfff5ee, 2.8, 16, 16)
+  const keyLight = new THREE.RectAreaLight(0xfff5ee, 0, 16, 16)
   keyLight.position.set(8, 8, 8)
   keyLight.lookAt(0, 0, 0)
   scene.add(keyLight)
 
   // Key shadow caster (directional aligned with key)
-  const keyShadow = new THREE.DirectionalLight(0xfff5ee, 0.4)
+  const keyShadow = new THREE.DirectionalLight(0xfff5ee, 0)
   keyShadow.position.set(8, 8, 8)
   keyShadow.castShadow = true
   keyShadow.shadow.mapSize.width = 2048
@@ -46,26 +50,35 @@ export function createScene() {
   scene.add(keyShadow)
 
   // FILL LIGHT — camera left, half the key for 2:1 ratio
-  const fillLight = new THREE.RectAreaLight(0xe0e8f0, 1.5, 10, 10)
+  const fillLight = new THREE.RectAreaLight(0xe0e8f0, 0, 10, 10)
   fillLight.position.set(-8, 5, 8)
   fillLight.lookAt(0, 0, 0)
   scene.add(fillLight)
 
   // RIM LIGHT — top-left behind, opposite the key for edge separation
-  const rimLight = new THREE.DirectionalLight(0xffffff, 1.2)
+  const rimLight = new THREE.DirectionalLight(0xffffff, 0)
   rimLight.position.set(-6, 6, -4)
   scene.add(rimLight)
 
   // SOFT KEY — SpotLight, 45° up-right, wide cone with full penumbra
-  const softKey = new THREE.SpotLight(0xfff5ee, 10, 42, 0.980, 0.9, 0.4)
+  const softKey = new THREE.SpotLight(0xfff5ee, 0, 42, 0.980, 0.9, 0.4)
   softKey.position.set(2.5, 5, 4)
   softKey.target.position.set(0, 0, 0)
   scene.add(softKey)
   scene.add(softKey.target)
 
   // Low ambient — just enough to keep deepest shadows from going full black
-  const ambient = new THREE.AmbientLight(0x606878, 0.25)
+  const ambient = new THREE.AmbientLight(0x606878, 0)
   scene.add(ambient)
 
-  return { scene, camera, renderer, softKey }
+  const lights = {
+    key: keyLight,
+    keyShadow,
+    fill: fillLight,
+    rim: rimLight,
+    soft: softKey,
+    ambient,
+  }
+
+  return { scene, camera, renderer, softKey, lights }
 }

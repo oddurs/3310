@@ -163,8 +163,16 @@ export function loadPhone(scene, lcdTexture) {
         // LCD screen plane
         const screenPlane = new THREE.PlaneGeometry(screenWidth, screenHeight)
         let screenShaderRef = null
-        const screenMaterial = new THREE.MeshBasicMaterial({
-          map: lcdTexture,
+        const screenMaterial = new THREE.MeshPhysicalMaterial({
+          color: 0x000000,
+          emissive: 0xffffff,
+          emissiveMap: lcdTexture,
+          emissiveIntensity: 0.88,
+          roughness: 0.12,
+          metalness: 0.0,
+          clearcoat: 0.53,
+          clearcoatRoughness: 0.1,
+          envMapIntensity: 0.6,
           toneMapped: false,
           depthWrite: false,
         })
@@ -175,16 +183,21 @@ export function loadPhone(scene, lcdTexture) {
           shader.uniforms.dotSize = { value: 0.42 }
           shader.uniforms.dotSoftness = { value: 0.15 }
           shader.uniforms.dotOpacity = { value: 0.04 }
+          shader.uniforms.lcdContrast = { value: 0.55 }
+          shader.uniforms.lcdBrightness = { value: -0.54 }
 
           shader.fragmentShader = shader.fragmentShader.replace(
             'void main() {',
-            'uniform float dotCols;\nuniform float dotRows;\nuniform float dotSize;\nuniform float dotSoftness;\nuniform float dotOpacity;\nvoid main() {'
+            'uniform float dotCols;\nuniform float dotRows;\nuniform float dotSize;\nuniform float dotSoftness;\nuniform float dotOpacity;\nuniform float lcdContrast;\nuniform float lcdBrightness;\nvoid main() {'
           )
           shader.fragmentShader = shader.fragmentShader.replace(
             '#include <dithering_fragment>',
             `#include <dithering_fragment>
+            // LCD contrast & brightness
+            gl_FragColor.rgb = (gl_FragColor.rgb - 0.5) * lcdContrast + 0.5 + lcdBrightness;
+            // Dot matrix overlay
             if (dotOpacity > 0.001) {
-              vec2 cell = vec2(fract(vMapUv.x * dotCols) - 0.5, fract(vMapUv.y * dotRows) - 0.5);
+              vec2 cell = vec2(fract(vEmissiveMapUv.x * dotCols) - 0.5, fract(vEmissiveMapUv.y * dotRows) - 0.5);
               float dist = length(cell);
               float mask = smoothstep(dotSize, dotSize + dotSoftness, dist);
               gl_FragColor.rgb *= 1.0 - mask * dotOpacity;
@@ -195,27 +208,22 @@ export function loadPhone(scene, lcdTexture) {
         screenMesh.renderOrder = 1
         screenMesh.position.set(0, 0.604, 0.312)
         screenMesh.scale.set(1.02, 0.975, 1)
-        screenMesh.layers.enable(1) // receive screenGlow light (on layer 1)
+        screenMesh.layers.enable(0)
         phoneGroup.add(screenMesh)
 
-        // Dark backing plane behind the screen — covers full transparency window to block light bleed
-        const backingW = (scrMax.x - scrMin.x) + 0.06 // transparency window width + margin
-        const backingH = (scrMax.y - scrMin.y) + 0.06
+        // Dark backing plane — sits just behind the screen mesh to block all interior geometry
+        const backingW = (scrMax.x - scrMin.x) + 0.4
+        const backingH = (scrMax.y - scrMin.y) + 0.4
         const backingCX = (scrMin.x + scrMax.x) / 2
         const backingCY = (scrMin.y + scrMax.y) / 2
         const backingGeo = new THREE.PlaneGeometry(backingW, backingH)
-        const backingMat = new THREE.MeshBasicMaterial({ color: 0x0a0a0a, toneMapped: false })
+        const backingMat = new THREE.MeshBasicMaterial({ color: 0x000000, toneMapped: false })
         const backingMesh = new THREE.Mesh(backingGeo, backingMat)
-        backingMesh.position.set(backingCX, backingCY, 0.08)
+        backingMesh.position.set(backingCX, backingCY, 0.28)
         backingMesh.renderOrder = 0
         phoneGroup.add(backingMesh)
 
-        // Screen glow light — layer 1 so it only illuminates the screen mesh,
-        // not the phone body (bezel elements very close to the light would blow out)
-        const screenGlow = new THREE.PointLight(0xaabb88, 0.15, 2.7)
-        screenGlow.position.set(0, 0.604, 0.612)
-        screenGlow.layers.set(1)
-        phoneGroup.add(screenGlow)
+        // Screen glow light removed — was causing interior brightness issues
 
         // Center the phone in the scene
         phoneGroup.position.y = 0
@@ -234,7 +242,7 @@ export function loadPhone(scene, lcdTexture) {
           meshList,
           screenMesh,
           screenMaterial,
-          screenGlow,
+          backingMesh,
           phoneMaterial,
           phoneBounds: box,
           updateShader,
