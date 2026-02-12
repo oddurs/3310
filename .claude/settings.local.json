@@ -90,7 +90,10 @@
       "Bash(git -C /Users/oddurs/Code/nokia-snake push -u origin main)",
       "Bash(xargs kill:*)",
       "Bash(npx playwright install:*)",
-      "Bash(convert:*)"
+      "Bash(convert:*)",
+      "Bash(git -C /Users/oddurs/Code/nokia-snake status public/og/)",
+      "Bash(git -C /Users/oddurs/Code/nokia-snake log --oneline -5)",
+      "Bash(git -C /Users/oddurs/Code/nokia-snake remote:*)"
     ]
   }
 }

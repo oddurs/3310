@@ -7,13 +7,14 @@
 //   npm run screenshots
 //   node scripts/screenshots.js
 //
-// Output: public/og/<theme-id>.png + public/og/og.png (default sharing image)
+// Output: public/og/<theme-id>.jpg + public/og/og.jpg (default sharing image)
 
 import { chromium } from 'playwright'
 import { createServer } from 'vite'
+import { execSync } from 'child_process'
 import { fileURLToPath } from 'url'
 import { dirname, resolve, join } from 'path'
-import { existsSync, mkdirSync, copyFileSync, readdirSync } from 'fs'
+import { existsSync, mkdirSync, copyFileSync } from 'fs'
 import { tmpdir } from 'os'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -23,9 +24,11 @@ const OUT_DIR = resolve(ROOT, 'public/og')
 // Write to temp dir during capture so Vite's file watcher doesn't trigger reloads
 const TMP_DIR = join(tmpdir(), 'nokia-snake-screenshots')
 
-// OG image dimensions (1200x630 is the standard for Open Graph)
+// OG image standard: 1200x630. Capture at 2x for downscale sharpness.
 const WIDTH = 1200
 const HEIGHT = 630
+const SCALE = 2
+const JPEG_QUALITY = 85
 
 // Theme IDs must match THEMES array in src/scene/themes.js
 const THEMES = ['sunflowers', 'shanghai', 'autumn_park', 'beach', 'golden_sunset']
@@ -56,7 +59,7 @@ async function main() {
   })
   const context = await browser.newContext({
     viewport: { width: WIDTH, height: HEIGHT },
-    deviceScaleFactor: 2,
+    deviceScaleFactor: SCALE,
   })
   const page = await context.newPage()
 
@@ -91,14 +94,12 @@ async function main() {
       console.log(`Capturing ${themeId} (${i + 1}/${THEMES.length})...`)
 
       if (i > 0) {
-        // Click the env "next" (›) button — find it by text content
+        // Click the env "next" (›) button
         await page.evaluate(() => {
           const allBtns = Array.from(document.querySelectorAll('button'))
           const nextBtn = allBtns.find(b => b.textContent.trim() === '\u203A')
           if (nextBtn) nextBtn.click()
         })
-
-        // Wait for HDRI + backplate to load
         await page.waitForTimeout(3000)
       }
 
@@ -106,9 +107,8 @@ async function main() {
       await page.evaluate(() => document.body.classList.add('screenshot-mode'))
       await page.waitForTimeout(200)
 
-      const tmpPath = join(TMP_DIR, `${themeId}.png`)
-      await page.screenshot({ path: tmpPath, type: 'png' })
-      console.log(`  Captured ${themeId}`)
+      const pngPath = join(TMP_DIR, `${themeId}.png`)
+      await page.screenshot({ path: pngPath, type: 'png' })
 
       await page.evaluate(() => document.body.classList.remove('screenshot-mode'))
     }
@@ -117,24 +117,26 @@ async function main() {
     await server.close()
   }
 
-  // Copy from temp to public/og/ (safe — Vite server is stopped)
-  console.log('\nCopying to public/og/...')
+  // Convert PNGs → resized compressed JPEGs using macOS sips
+  console.log(`\nProcessing ${THEMES.length} images (resize ${WIDTH * SCALE}→${WIDTH}, JPEG q${JPEG_QUALITY})...`)
   for (const themeId of THEMES) {
     const src = join(TMP_DIR, `${themeId}.png`)
-    const dst = resolve(OUT_DIR, `${themeId}.png`)
-    if (existsSync(src)) {
-      copyFileSync(src, dst)
-      console.log(`  ${dst}`)
-    }
+    const dst = resolve(OUT_DIR, `${themeId}.jpg`)
+    if (!existsSync(src)) continue
+    execSync(
+      `sips -z ${HEIGHT} ${WIDTH} "${src}" --setProperty format jpeg --setProperty formatOptions ${JPEG_QUALITY} --out "${dst}"`,
+      { stdio: 'pipe' }
+    )
+    console.log(`  ${themeId}.jpg`)
   }
 
   // Default OG image = first theme
   copyFileSync(
-    resolve(OUT_DIR, `${THEMES[0]}.png`),
-    resolve(OUT_DIR, 'og.png')
+    resolve(OUT_DIR, `${THEMES[0]}.jpg`),
+    resolve(OUT_DIR, 'og.jpg')
   )
 
-  console.log(`\nDefault OG image: public/og/og.png (${THEMES[0]})`)
+  console.log(`\nDefault OG image: public/og/og.jpg (${THEMES[0]})`)
   console.log('Done.')
 }
 

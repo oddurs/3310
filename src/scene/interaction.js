@@ -39,9 +39,6 @@ export function createInteraction(camera) {
   window.addEventListener('mousemove', onMouseMove)
   window.addEventListener('touchmove', onTouchMove, { passive: true })
 
-  function triggerPulse() {
-  }
-
   function update(dt, baseDistance) {
     const lerpFactor = 1 - Math.pow(0.001, dt)
     currentAzimuth += (targetAzimuth - currentAzimuth) * lerpFactor
@@ -57,5 +54,5 @@ export function createInteraction(camera) {
     camera.lookAt(target)
   }
 
-  return { update, triggerPulse }
+  return { update }
 }

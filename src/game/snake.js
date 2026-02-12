@@ -13,6 +13,7 @@ import { loadLeaderboard, saveToLeaderboard } from './leaderboard.js'
 const LEVEL_TO_SPEED = [0, 0, 2, 4, 6, 8, 10, 11, 13, 14]
 
 export function createGame() {
+  let cachedLeaderboard = loadLeaderboard()
   let state = 'splash'   // splash | menu | menuLevel | leaderboard | playing | paused | dying | gameover
   let segments = []       // [{x, y, sprite}, ...] head at index 0
   let direction = DIR_RIGHT
@@ -180,6 +181,7 @@ export function createGame() {
           state = 'gameover'
           if (score > highScore) highScore = score
           saveToLeaderboard(score)
+          cachedLeaderboard = loadLeaderboard()
         }
       }
       return null
@@ -406,7 +408,7 @@ export function createGame() {
       gameLevel,
       menuIndex,
       tempLevel,
-      leaderboard: loadLeaderboard(),
+      leaderboard: cachedLeaderboard,
       deathBlinkVisible,
       walls: getActiveMaze(),
     }
