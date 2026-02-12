@@ -7,29 +7,10 @@ import {
 } from './constants.js'
 import { TURN_INDEX } from './sprites.js'
 import { getMazeWalls, getMazeStart } from './mazes.js'
+import { loadLeaderboard, saveToLeaderboard } from './leaderboard.js'
 
 // User levels 1-9 mapped to SPEED_TABLE indices (index 0 unused)
 const LEVEL_TO_SPEED = [0, 0, 2, 4, 6, 8, 10, 11, 13, 14]
-
-// Leaderboard — top 5 scores in localStorage
-const LB_KEY = 'snake2-top-scores'
-const LB_MAX = 5
-
-function loadLeaderboard() {
-  try {
-    const raw = localStorage.getItem(LB_KEY)
-    if (raw) return JSON.parse(raw).slice(0, LB_MAX)
-  } catch (_) {}
-  return []
-}
-
-function saveToLeaderboard(score) {
-  if (score <= 0) return
-  const lb = loadLeaderboard()
-  lb.push(score)
-  lb.sort((a, b) => b - a)
-  localStorage.setItem(LB_KEY, JSON.stringify(lb.slice(0, LB_MAX)))
-}
 
 export function createGame() {
   let state = 'splash'   // splash | menu | menuLevel | leaderboard | playing | paused | dying | gameover

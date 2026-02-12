@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-export function createInteraction(camera, screenGlow) {
+export function createInteraction(camera) {
   const target = new THREE.Vector3(0, 0, 0)
 
   // Spherical coords for camera orbit
@@ -9,22 +9,37 @@ export function createInteraction(camera, screenGlow) {
   let currentAzimuth = 0
   let currentPolar = 0
 
-  let pulseIntensity = 0
-  let glowBase = 0.37
+  const isMobile = window.innerWidth < 768
+
+  function setTarget(mx, my) {
+    if (isMobile) {
+      // Mobile: ±4° horizontal, ±2° vertical
+      targetAzimuth = mx * 0.07
+      targetPolar = -my * 0.035
+    } else {
+      // Desktop: ±12° horizontal, ±6° vertical
+      targetAzimuth = mx * 0.21
+      targetPolar = -my * 0.10
+    }
+  }
 
   function onMouseMove(e) {
     const mx = (e.clientX / window.innerWidth) * 2 - 1
     const my = (e.clientY / window.innerHeight) * 2 - 1
+    setTarget(mx, my)
+  }
 
-    // Subtle orbit: ±12° horizontal, ±6° vertical
-    targetAzimuth = mx * 0.21   // ~12°
-    targetPolar = -my * 0.10    // ~6°
+  function onTouchMove(e) {
+    const t = e.touches[0]
+    const mx = (t.clientX / window.innerWidth) * 2 - 1
+    const my = (t.clientY / window.innerHeight) * 2 - 1
+    setTarget(mx, my)
   }
 
   window.addEventListener('mousemove', onMouseMove)
+  window.addEventListener('touchmove', onTouchMove, { passive: true })
 
   function triggerPulse() {
-    pulseIntensity = 1.0
   }
 
   function update(dt, baseDistance) {
@@ -40,21 +55,7 @@ export function createInteraction(camera, screenGlow) {
 
     camera.position.set(x, y, z)
     camera.lookAt(target)
-
-    // Screen pulse decay
-    if (pulseIntensity > 0) {
-      pulseIntensity *= Math.pow(0.01, dt)
-      if (pulseIntensity < 0.01) pulseIntensity = 0
-    }
-
-    if (screenGlow) {
-      screenGlow.intensity = glowBase + pulseIntensity * 0.3
-    }
   }
 
-  function setGlowBase(v) {
-    glowBase = v
-  }
-
-  return { update, triggerPulse, setGlowBase }
+  return { update, triggerPulse }
 }

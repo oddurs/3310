@@ -20,6 +20,7 @@ import { createCameraController } from './scene/camera.js'
 import { createEventHandler } from './game/events.js'
 import { createUI } from './scene/ui.js'
 import { createAboutPopup } from './scene/about.js'
+import { createSharePopup } from './scene/share.js'
 import { createDustParticles } from './scene/particles.js'
 
 async function init() {
@@ -40,12 +41,14 @@ async function init() {
 
   // UI (bottom bar + top-right title)
   const aboutPopup = createAboutPopup()
+  const sharePopup = createSharePopup()
   const ui = createUI({
     initialEnvLabel: themes.getCurrentTheme().label,
     onEnvPrev: () => { ui.updateEnvLabel(themes.prev()) },
     onEnvNext: () => { ui.updateEnvLabel(themes.next()) },
     radio,
     onAbout: () => aboutPopup.show(),
+    onShare: () => sharePopup.show(),
   })
 
   // Environment
@@ -62,7 +65,7 @@ async function init() {
   const dust = createDustParticles(scene, camera)
 
   // Interaction — camera orbits around static phone
-  const interaction = createInteraction(camera, null)
+  const interaction = createInteraction(camera)
 
   // Clickable phone buttons (nav pad, numpad, menu, C)
   const buttons = createButtons(camera, renderer, phone, game)
@@ -80,7 +83,6 @@ async function init() {
       colorGradePass,
       screenMesh,
       screenMaterial,
-      screenGlow: null,
       backingMesh,
       phoneMaterial,
       renderer,

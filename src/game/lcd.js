@@ -165,9 +165,9 @@ export function createLCD() {
 
     // Highlight bar: 1px from content left edge, extends to scrollbar right edge
     const barL = contentL + 1            // 7
-    const barH = 20 + 4                  // 24 (2px above text + 20px font + 2px below)
-    const itemGap = 1
-    const itemStep = barH + itemGap      // 25
+    const barH = 24 + 2                  // 26 (1px above text + 24px font + 1px below)
+    const itemGap = 0
+    const itemStep = barH + itemGap      // 26
 
     // "8-1-X" Nokia menu path (Games > Snake II > item) — top right
     ctx.fillStyle = FG_COLOR
@@ -212,7 +212,7 @@ export function createLCD() {
     // "Select" — centered at bottom
     ctx.fillStyle = FG_COLOR
     const selectW = measureText7('Select')
-    drawText7('Select', Math.floor((LCD_W - selectW) / 2), LCD_H - BORDER - 20)
+    drawText7('Select', Math.floor((LCD_W - selectW) / 2), LCD_H - BORDER - 25)
   }
 
   function drawMenuLevel(gameState) {

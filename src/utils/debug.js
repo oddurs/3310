@@ -15,7 +15,6 @@ export function createDebug({
   colorGradePass,
   screenMesh,
   screenMaterial,
-  screenGlow,
   backingMesh,
   phoneMaterial,
   renderer,
@@ -105,15 +104,11 @@ export function createDebug({
     set posY(v) { screenMesh.position.y = v },
     get posZ() { return screenMesh.position.z },
     set posZ(v) { screenMesh.position.z = v },
-    glowBase: 0.37,
-    get glowDistance() { return screenGlow ? screenGlow.distance : 0 },
-    set glowDistance(v) { if (screenGlow) screenGlow.distance = v },
     copy() {
       copyText([
         `Screen:`,
         `  scaleX ${screen.scaleX}  scaleY ${screen.scaleY}`,
         `  posX ${screen.posX}  posY ${screen.posY}  posZ ${screen.posZ}`,
-        `  glowBase ${screen.glowBase}  glowDistance ${screen.glowDistance}`,
       ].join('\n'))
     },
   }
@@ -122,8 +117,6 @@ export function createDebug({
   screenFolder.add(screen, 'posX', -0.5, 0.5, 0.001).name('Pos X')
   screenFolder.add(screen, 'posY', -0.5, 1.5, 0.001).name('Pos Y')
   screenFolder.add(screen, 'posZ', -0.5, 0.5, 0.001).name('Pos Z')
-  screenFolder.add(screen, 'glowBase', 0, 2, 0.01).name('Glow intensity').onChange(v => interaction.setGlowBase(v))
-  screenFolder.add(screen, 'glowDistance', 0, 10, 0.1).name('Glow distance')
   screenFolder.add(screen, 'copy').name('Copy values')
   screenFolder.close()
 
@@ -511,7 +504,7 @@ export function createDebug({
   // =========================================================
   let lightDebug = null
   if (lights && scene) {
-    lightDebug = createLightDebug(gui, scene, lights, screenGlow, camera)
+    lightDebug = createLightDebug(gui, scene, lights, null, camera)
   }
 
   // =========================================================
@@ -552,7 +545,7 @@ export function createDebug({
   gui.add({
     copyAll() {
       const lines = [
-        `Screen: scaleX ${screen.scaleX} scaleY ${screen.scaleY} posX ${screen.posX} posY ${screen.posY} posZ ${screen.posZ} glowBase ${screen.glowBase} glowDistance ${screen.glowDistance}`,
+        `Screen: scaleX ${screen.scaleX} scaleY ${screen.scaleY} posX ${screen.posX} posY ${screen.posY} posZ ${screen.posZ}`,
         `Post: bloomStrength ${post.bloomStrength} bloomRadius ${post.bloomRadius} bloomThreshold ${post.bloomThreshold} vignetteOffset ${post.vignetteOffset} vignetteDarkness ${post.vignetteDarkness} exposure ${post.exposure}`,
         `Material: metalness ${mat.metalness} roughness ${mat.roughness} clearcoat ${mat.clearcoat} clearcoatRoughness ${mat.clearcoatRoughness} envMapIntensity ${mat.envMapIntensity}`,
         `Camera: fov ${cam.fov}`,

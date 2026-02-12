@@ -155,7 +155,6 @@ export function loadPhone(scene, lcdTexture) {
             child.receiveShadow = true
             child.renderOrder = 2
             meshList.push(child)
-            console.log(`[Phone] mesh: "${child.name}"`, child)
           }
         })
 
@@ -207,7 +206,7 @@ export function loadPhone(scene, lcdTexture) {
         }
         const screenMesh = new THREE.Mesh(screenPlane, screenMaterial)
         screenMesh.renderOrder = 1
-        screenMesh.position.set(0, 0.604, 0.312)
+        screenMesh.position.set(0, 0.612, 0.312)
         screenMesh.scale.set(1.02, 0.975, 1)
         screenMesh.layers.enable(0)
         phoneGroup.add(screenMesh)

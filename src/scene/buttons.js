@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { dispatchAction } from '../game/dispatch.js'
 
 // Button zone detection for clicking on the 3D Nokia phone model
 // Zones calibrated from actual raycast hit coordinates on the phone model
@@ -105,68 +106,8 @@ export function createButtons(camera, renderer, phoneGroup, game) {
     press.zone = ZONES[zone]
     press.amount = 1.0
 
-    const { state } = game.getState()
-    handleAction(action, state)
-  }
-
-  function handleAction(action, state) {
-    if (state === 'splash') {
-      game.dismissSplash()
-      return
-    }
-
-    if (state === 'menu') {
-      switch (action) {
-        case 'up':    game.menuUp(); break
-        case 'down':  game.menuDown(); break
-        case 'ok':
-          const evt = game.menuSelect()
-          if (evt) pendingEvents.push(evt)
-          break
-      }
-      return
-    }
-
-    if (state === 'leaderboard') {
-      game.menuBack()
-      return
-    }
-
-    if (state === 'menuLevel') {
-      switch (action) {
-        case 'left':  game.menuLeft(); break
-        case 'right': game.menuRight(); break
-        case 'ok':    game.levelConfirm(); break
-        case 'back':  game.menuBack(); break
-      }
-      return
-    }
-
-    if (state === 'playing') {
-      switch (action) {
-        case 'up':    game.setDirection(0); break
-        case 'down':  game.setDirection(1); break
-        case 'left':  game.setDirection(2); break
-        case 'right': game.setDirection(3); break
-        case 'back':  game.togglePause(); break
-      }
-      return
-    }
-
-    if (state === 'paused') {
-      if (action === 'ok' || action === 'back') {
-        game.togglePause()
-      }
-      return
-    }
-
-    if (state === 'gameover') {
-      if (action === 'ok') {
-        game.returnToMenu()
-        pendingEvents.push({ event: 'menuReturn' })
-      }
-      return
-    }
+    const evt = dispatchAction(game, action)
+    if (evt) pendingEvents.push(evt)
   }
 
   renderer.domElement.addEventListener('click', onClick)

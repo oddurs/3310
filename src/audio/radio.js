@@ -13,6 +13,7 @@ const STATIONS = [
 ]
 
 const DEFAULT_VOLUME = 0.04
+const FADE_IN_TAU = 0.12 // exponential time constant — reaches ~95% in 360ms
 
 export function createRadio() {
   let ctx = null
@@ -83,55 +84,163 @@ export function createRadio() {
     return usingFallback ? fallbackEl : audioEl
   }
 
+  // --- FM scrub sounds ---
+  // All noise-based (no oscillators) — filtered through a small-speaker sim
+  // so it sounds like real radio static, not a video game
+
+  function makeNoise(duration) {
+    const len = Math.ceil(ctx.sampleRate * duration)
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate)
+    const d = buf.getChannelData(0)
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1
+    return buf
+  }
+
+  function makeCrackleNoise(duration) {
+    const len = Math.ceil(ctx.sampleRate * duration)
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate)
+    const d = buf.getChannelData(0)
+    for (let i = 0; i < len; i++) {
+      // Base hiss with random pops/crackle
+      d[i] = (Math.random() * 2 - 1) * (Math.random() > 0.995 ? 3 : 1)
+    }
+    return buf
+  }
+
+  // Small-speaker filter: hp 400 → peaking 1.8k → lp 4k
+  // Makes raw noise sound like it's coming through a phone speaker
+  function speakerChain() {
+    const hp = ctx.createBiquadFilter()
+    hp.type = 'highpass'
+    hp.frequency.value = 400
+    const pk = ctx.createBiquadFilter()
+    pk.type = 'peaking'
+    pk.frequency.value = 1800
+    pk.Q.value = 1.5
+    pk.gain.value = 4
+    const lp = ctx.createBiquadFilter()
+    lp.type = 'lowpass'
+    lp.frequency.value = 4000
+    hp.connect(pk)
+    pk.connect(lp)
+    return { input: hp, output: lp }
+  }
+
+  // 1) Dial sweep — bandpass frequency sweeps across the band like turning a knob
+  function scrubDialSweep(t, scrubVol, duration) {
+    const src = ctx.createBufferSource()
+    src.buffer = makeNoise(duration)
+
+    const bp = ctx.createBiquadFilter()
+    bp.type = 'bandpass'
+    bp.Q.value = 2 + Math.random() * 3
+    const f0 = 800 + Math.random() * 1200
+    const dir = Math.random() > 0.5 ? 1 : -1
+    const f1 = Math.max(300, f0 + dir * (600 + Math.random() * 1500))
+    bp.frequency.setValueAtTime(f0, t)
+    bp.frequency.exponentialRampToValueAtTime(f1, t + duration * 0.8)
+
+    const spk = speakerChain()
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(scrubVol, t)
+    g.gain.setValueAtTime(scrubVol * 0.7, t + duration * 0.6)
+    g.gain.exponentialRampToValueAtTime(0.001, t + duration)
+
+    src.connect(bp)
+    bp.connect(spk.input)
+    spk.output.connect(g)
+    g.connect(ctx.destination)
+    src.start(t)
+    src.stop(t + duration)
+  }
+
+  // 2) Interstation hiss — broad wideband static, like landing between stations
+  function scrubHiss(t, scrubVol, duration) {
+    const src = ctx.createBufferSource()
+    src.buffer = makeNoise(duration)
+
+    const spk = speakerChain()
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(scrubVol * 1.2, t)
+    g.gain.exponentialRampToValueAtTime(0.001, t + duration)
+
+    src.connect(spk.input)
+    spk.output.connect(g)
+    g.connect(ctx.destination)
+    src.start(t)
+    src.stop(t + duration)
+  }
+
+  // 3) Flutter — noise with LFO amplitude modulation, like a weak signal fading
+  function scrubFlutter(t, scrubVol, duration) {
+    const src = ctx.createBufferSource()
+    src.buffer = makeNoise(duration)
+
+    const bp = ctx.createBiquadFilter()
+    bp.type = 'bandpass'
+    bp.frequency.value = 1200 + Math.random() * 1800
+    bp.Q.value = 0.8 + Math.random() * 1.2
+
+    // LFO modulates the gain for that wavering-signal feel
+    const lfo = ctx.createOscillator()
+    lfo.frequency.value = 5 + Math.random() * 12
+    const lfoGain = ctx.createGain()
+    lfoGain.gain.value = scrubVol * 0.4
+
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(scrubVol * 0.6, t)
+    g.gain.exponentialRampToValueAtTime(0.001, t + duration)
+
+    lfo.connect(lfoGain)
+    lfoGain.connect(g.gain)
+
+    const spk = speakerChain()
+    src.connect(bp)
+    bp.connect(spk.input)
+    spk.output.connect(g)
+    g.connect(ctx.destination)
+
+    src.start(t)
+    lfo.start(t)
+    src.stop(t + duration)
+    lfo.stop(t + duration)
+  }
+
+  // 4) Crackle — static with prominent pops, like an old analog radio
+  function scrubCrackle(t, scrubVol, duration) {
+    const src = ctx.createBufferSource()
+    src.buffer = makeCrackleNoise(duration)
+
+    const spk = speakerChain()
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(scrubVol, t)
+    g.gain.exponentialRampToValueAtTime(0.001, t + duration)
+
+    src.connect(spk.input)
+    spk.output.connect(g)
+    g.connect(ctx.destination)
+    src.start(t)
+    src.stop(t + duration)
+  }
+
+  const scrubVariations = [scrubDialSweep, scrubHiss, scrubFlutter, scrubCrackle]
+  let lastScrubIndex = -1
+
   function playFMScrub() {
     if (!ctx) return Promise.resolve()
     scrubbing = true
 
     return new Promise((resolve) => {
-      const duration = 0.4
       const t = ctx.currentTime
-      const scrubVolume = Math.min(volume * 3, 0.15)
+      const scrubVol = Math.min(volume * 3, 0.15)
+      const duration = 0.35 + Math.random() * 0.3
 
-      // White noise burst through bandpass
-      const bufferSize = ctx.sampleRate * duration
-      const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
-      const data = noiseBuffer.getChannelData(0)
-      for (let i = 0; i < bufferSize; i++) {
-        data[i] = Math.random() * 2 - 1
-      }
+      // Pick a variation different from last time
+      let idx = Math.floor(Math.random() * scrubVariations.length)
+      if (idx === lastScrubIndex) idx = (idx + 1) % scrubVariations.length
+      lastScrubIndex = idx
 
-      const noiseSource = ctx.createBufferSource()
-      noiseSource.buffer = noiseBuffer
-
-      const bandpass = ctx.createBiquadFilter()
-      bandpass.type = 'bandpass'
-      bandpass.frequency.value = 2500
-      bandpass.Q.value = 0.5
-
-      const noiseGain = ctx.createGain()
-      noiseGain.gain.setValueAtTime(scrubVolume, t)
-      noiseGain.gain.exponentialRampToValueAtTime(0.001, t + duration)
-
-      noiseSource.connect(bandpass)
-      bandpass.connect(noiseGain)
-      noiseGain.connect(ctx.destination)
-      noiseSource.start(t)
-      noiseSource.stop(t + duration)
-
-      // Sine sweep for "tuning" feel
-      const sweep = ctx.createOscillator()
-      sweep.type = 'sine'
-      sweep.frequency.setValueAtTime(800, t)
-      sweep.frequency.exponentialRampToValueAtTime(2000, t + 0.15)
-
-      const sweepGain = ctx.createGain()
-      sweepGain.gain.setValueAtTime(scrubVolume * 0.5, t)
-      sweepGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15)
-
-      sweep.connect(sweepGain)
-      sweepGain.connect(ctx.destination)
-      sweep.start(t)
-      sweep.stop(t + 0.15)
+      scrubVariations[idx](t, scrubVol, duration)
 
       setTimeout(() => {
         scrubbing = false
@@ -140,8 +249,53 @@ export function createRadio() {
     })
   }
 
+  // --- Fade-in on stream playback ---
+
+  function fadeInGain() {
+    if (eqConnected && gainNode && !usingFallback) {
+      // Web Audio path: exponential ease toward target volume
+      const t = ctx.currentTime
+      gainNode.gain.cancelScheduledValues(t)
+      gainNode.gain.setValueAtTime(0.001, t)
+      gainNode.gain.setTargetAtTime(volume, t, FADE_IN_TAU)
+    }
+  }
+
+  function fadeInFallback() {
+    // Fallback path: manual ease-out ramp
+    fallbackEl.volume = 0
+    let start = null
+    const dur = FADE_IN_TAU * 3 * 1000 // ~360ms to reach ~95%
+    function tick(ts) {
+      if (!start) start = ts
+      const p = Math.min((ts - start) / dur, 1)
+      fallbackEl.volume = volume * (1 - Math.pow(1 - p, 3)) // ease-out cubic
+      if (p < 1) requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
+  }
+
   function loadAndPlay(index) {
     const el = getActiveEl()
+
+    // Mute before loading so the stream doesn't pop in
+    if (eqConnected && gainNode && !usingFallback) {
+      gainNode.gain.setValueAtTime(0.001, ctx.currentTime)
+    } else if (usingFallback && fallbackEl) {
+      fallbackEl.volume = 0
+    }
+
+    // Fade in once the stream starts playing
+    const onPlaying = () => {
+      el.removeEventListener('playing', onPlaying)
+      if (usingFallback) {
+        fadeInFallback()
+      } else {
+        fadeInGain()
+      }
+    }
+    el.addEventListener('playing', onPlaying)
+
     el.src = STATIONS[index].url
     el.load()
     el.play().catch(() => {})

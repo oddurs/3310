@@ -57,7 +57,7 @@ defChar('!', [' # ', ' # ', ' # ', '   ', ' # '])
 // Nokia font rasterizer: renders NokjaOriginalSmallBold to pixel-perfect bitmaps
 // Canvas fillText always anti-aliases, so we rasterize to an offscreen canvas,
 // threshold the alpha to binary, and cache per-glyph pixel arrays.
-const NOKIA_FONT_SIZE = 20
+const NOKIA_FONT_SIZE = 24
 const NOKIA_FONT_CSS = `${NOKIA_FONT_SIZE}px "Nokia", monospace`
 const glyphCache = {}
 
@@ -66,7 +66,7 @@ function rasterGlyph(ch) {
   const off = document.createElement('canvas')
   const octx = off.getContext('2d')
   octx.font = NOKIA_FONT_CSS
-  const advance = Math.ceil(octx.measureText(ch).width)
+  const advance = Math.ceil(octx.measureText(ch).width) - 1
   off.width = advance + 2
   off.height = NOKIA_FONT_SIZE + 6
   // canvas resize clears font — set again

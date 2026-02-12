@@ -23,7 +23,7 @@ function makeIconBtn(svgHtml, title, onClick) {
   return btn
 }
 
-export function createUI({ initialEnvLabel, onEnvPrev, onEnvNext, radio, onAbout }) {
+export function createUI({ initialEnvLabel, onEnvPrev, onEnvNext, radio, onAbout, onShare }) {
   // === BOTTOM BAR ===
   const bar = document.createElement('div')
   bar.style.cssText = 'position:fixed;bottom:20px;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:0 24px;z-index:10;pointer-events:none;'
@@ -168,7 +168,7 @@ export function createUI({ initialEnvLabel, onEnvPrev, onEnvNext, radio, onAbout
   titleGroup.style.cssText = `position:fixed;top:20px;left:24px;z-index:10;display:flex;align-items:center;gap:12px;font-family:${FONT};-webkit-font-smoothing:none;`
 
   const titleEl = document.createElement('span')
-  titleEl.textContent = '3310.fi'
+  titleEl.textContent = '3310.love'
   titleEl.style.cssText = `color:rgba(255,255,255,0.6);font-size:20px;line-height:1;letter-spacing:0.5px;`
 
   // pixelarticons SVGs (24x24)
@@ -177,15 +177,9 @@ export function createUI({ initialEnvLabel, onEnvPrev, onEnvNext, radio, onAbout
   const svgGithub = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M5 2h2v12h3v3h7v-7h-3V2h8v8h-3v9h-9v3H2v-8h3V2zm15 6V4h-4v4h4zM8 19v-3H4v4h4v-1z"/></svg>'
 
   const aboutBtn = makeIconBtn(svgAbout, 'About', onAbout)
-  const shareBtn = makeIconBtn(svgShare, 'Share', () => {
-    if (navigator.share) {
-      navigator.share({ title: '3310.fi — Nokia Snake II', url: window.location.href })
-    } else {
-      navigator.clipboard.writeText(window.location.href)
-    }
-  })
+  const shareBtn = makeIconBtn(svgShare, 'Share', onShare)
   const githubBtn = makeIconBtn(svgGithub, 'GitHub', () => {
-    window.open('https://github.com/nicatspark/nokia-snake', '_blank')
+    window.open('https://github.com/oddurs/3310', '_blank')
   })
 
   titleGroup.appendChild(titleEl)

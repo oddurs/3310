@@ -138,47 +138,6 @@ export function createAmbient() {
     createDrone(80, 0.015)
   }
 
-  // Dark Forest: wind, creaking, deep ambiance
-  function playDarkForest() {
-    // Deep wind (low frequency noise)
-    createNoise(0.035, 'lowpass', 250, 0.5)
-    // Mid wind gusts
-    createNoise(0.015, 'bandpass', 600, 1.5)
-    // Deep forest drone
-    createDrone(50, 0.03)
-    createDrone(75, 0.015, -8)
-    // High atmospheric whisper
-    createNoise(0.005, 'highpass', 4000, 0.5)
-    // Occasional creaking
-    function scheduleCreak() {
-      if (!ctx || currentTheme !== 'dark_forest') return
-      const delay = 4 + Math.random() * 10
-      setTimeout(() => {
-        if (!ctx || currentTheme !== 'dark_forest') return
-        const t = ctx.currentTime
-        const osc = ctx.createOscillator()
-        osc.type = 'sawtooth'
-        osc.frequency.setValueAtTime(80 + Math.random() * 40, t)
-        osc.frequency.linearRampToValueAtTime(60 + Math.random() * 30, t + 0.3)
-        const filter = ctx.createBiquadFilter()
-        filter.type = 'bandpass'
-        filter.frequency.value = 300
-        filter.Q.value = 5
-        const g = ctx.createGain()
-        g.gain.setValueAtTime(0, t)
-        g.gain.linearRampToValueAtTime(0.01, t + 0.05)
-        g.gain.exponentialRampToValueAtTime(0.001, t + 0.4)
-        osc.connect(filter)
-        filter.connect(g)
-        g.connect(masterGain)
-        osc.start(t)
-        osc.stop(t + 0.5)
-        scheduleCreak()
-      }, delay * 1000)
-    }
-    scheduleCreak()
-  }
-
   function setTheme(themeId) {
     if (themeId === currentTheme) return
     fadeOut(0.8)
@@ -192,7 +151,6 @@ export function createAmbient() {
       switch (themeId) {
         case 'shanghai': playShanghai(); break
         case 'autumn_park': playAutumnPark(); break
-        case 'dark_forest': playDarkForest(); break
       }
 
       fadeIn(1.5)
