@@ -58,6 +58,13 @@ export function createButtons(camera, renderer, phoneGroup, game) {
   let debugConfig = { enabled: false }
   let onDebugClick = null
 
+  // Button press animation state
+  const press = {
+    amount: 0,
+    zone: null,  // ZONES entry { xMin, yMin, xMax, yMax }
+    decay: 12,   // speed of release
+  }
+
   function setDebug(config) {
     debugConfig = config
   }
@@ -93,6 +100,10 @@ export function createButtons(camera, renderer, phoneGroup, game) {
     }
 
     if (!zone || !action) return
+
+    // Trigger press animation
+    press.zone = ZONES[zone]
+    press.amount = 1.0
 
     const { state } = game.getState()
     handleAction(action, state)
@@ -164,5 +175,15 @@ export function createButtons(camera, renderer, phoneGroup, game) {
     return pendingEvents.splice(0)
   }
 
-  return { drainEvents, setDebug, setOnDebugClick }
+  function update(dt) {
+    if (press.amount > 0) {
+      press.amount = Math.max(0, press.amount - dt * press.decay)
+    }
+  }
+
+  function getPress() {
+    return press
+  }
+
+  return { drainEvents, setDebug, setOnDebugClick, update, getPress }
 }

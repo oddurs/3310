@@ -98,7 +98,7 @@ export function createDebug({
     set posY(v) { screenMesh.position.y = v },
     get posZ() { return screenMesh.position.z },
     set posZ(v) { screenMesh.position.z = v },
-    glowBase: 0.2,
+    glowBase: 0.37,
     get glowDistance() { return screenGlow.distance },
     set glowDistance(v) { screenGlow.distance = v },
     copy() {
@@ -272,6 +272,41 @@ export function createDebug({
     ].join('\n'))
   }}, 'copy').name('Copy values')
   swFolder.close()
+
+  // =========================================================
+  // Bezel Frame (raised area around screen)
+  // =========================================================
+  const tzFolder = gui.addFolder('Bezel Frame')
+  const tz = {
+    get darken() { const s = getShaderRef(); return s ? s.uniforms.topZoneDarken.value : 0.45 },
+    set darken(v) { const s = getShaderRef(); if (s) s.uniforms.topZoneDarken.value = v },
+    get tintR() { const s = getShaderRef(); return s ? s.uniforms.topZoneTint.value.x : 1 },
+    set tintR(v) { const s = getShaderRef(); if (s) s.uniforms.topZoneTint.value.x = v },
+    get tintG() { const s = getShaderRef(); return s ? s.uniforms.topZoneTint.value.y : 1 },
+    set tintG(v) { const s = getShaderRef(); if (s) s.uniforms.topZoneTint.value.y = v },
+    get tintB() { const s = getShaderRef(); return s ? s.uniforms.topZoneTint.value.z : 1 },
+    set tintB(v) { const s = getShaderRef(); if (s) s.uniforms.topZoneTint.value.z = v },
+    get alpha() { const s = getShaderRef(); return s ? s.uniforms.topZoneAlpha.value : 1 },
+    set alpha(v) { const s = getShaderRef(); if (s) s.uniforms.topZoneAlpha.value = v },
+    get zThreshold() { const s = getShaderRef(); return s ? s.uniforms.bezelZThreshold.value : 0.30 },
+    set zThreshold(v) { const s = getShaderRef(); if (s) s.uniforms.bezelZThreshold.value = v },
+    copy() {
+      copyText([
+        `Bezel Frame:`,
+        `  darken ${tz.darken}  alpha ${tz.alpha}`,
+        `  tint (${tz.tintR}, ${tz.tintG}, ${tz.tintB})`,
+        `  zThreshold ${tz.zThreshold}`,
+      ].join('\n'))
+    },
+  }
+  tzFolder.add(tz, 'darken', 0, 2, 0.01).name('Darken')
+  tzFolder.add(tz, 'tintR', 0, 2, 0.01).name('Tint R')
+  tzFolder.add(tz, 'tintG', 0, 2, 0.01).name('Tint G')
+  tzFolder.add(tz, 'tintB', 0, 2, 0.01).name('Tint B')
+  tzFolder.add(tz, 'alpha', 0, 1, 0.01).name('Alpha')
+  tzFolder.add(tz, 'zThreshold', 0, 0.6, 0.01).name('Z threshold')
+  tzFolder.add(tz, 'copy').name('Copy values')
+  tzFolder.close()
 
   // =========================================================
   // Dot Matrix Grid

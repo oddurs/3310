@@ -10,7 +10,7 @@ export function createInteraction(camera, screenGlow) {
   let currentPolar = 0
 
   let pulseIntensity = 0
-  let glowBase = 0.2
+  let glowBase = 0.37
 
   function onMouseMove(e) {
     const mx = (e.clientX / window.innerWidth) * 2 - 1

@@ -23,7 +23,7 @@ export function createScene() {
   // === PRODUCT LIGHTING — 2:1 contrast, soft key, strong rim ===
 
   // KEY LIGHT — large soft octabox, 45° right, 45° down
-  const keyLight = new THREE.RectAreaLight(0xfff5ee, 2, 16, 16)
+  const keyLight = new THREE.RectAreaLight(0xfff5ee, 2.8, 16, 16)
   keyLight.position.set(8, 8, 8)
   keyLight.lookAt(0, 0, 0)
   scene.add(keyLight)

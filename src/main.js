@@ -258,6 +258,18 @@ async function init() {
       interaction.update(dt, currentZoom)
     }
 
+    // Update button press animation
+    buttons.update(dt)
+    const press = buttons.getPress()
+    const shader = getShaderRef()
+    if (shader && press.zone && press.amount > 0.001) {
+      shader.uniforms.pressMin.value.set(press.zone.xMin, press.zone.yMin)
+      shader.uniforms.pressMax.value.set(press.zone.xMax, press.zone.yMax)
+      shader.uniforms.pressAmount.value = press.amount
+    } else if (shader) {
+      shader.uniforms.pressAmount.value = 0
+    }
+
     // Update phone shader (sync transparent window with group rotation)
     updateShader()
 

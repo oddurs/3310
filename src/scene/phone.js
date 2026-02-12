@@ -45,11 +45,9 @@ export function loadPhone(scene, lcdTexture) {
         const screenHeight = phoneSize.y * 0.2114
         const screenPos = new THREE.Vector3(0, 0.582, 0.141)
 
-        // Transparency window — trimmed at bottom to keep bezel text visible
-        const scrHalfW = screenWidth / 2
-        const scrHalfH = screenHeight / 2
-        const scrMin = new THREE.Vector2(screenPos.x - scrHalfW, screenPos.y - scrHalfH * 0.88)
-        const scrMax = new THREE.Vector2(screenPos.x + scrHalfW, screenPos.y + scrHalfH)
+        // Transparency window (calibrated)
+        const scrMin = new THREE.Vector2(-0.743, 0.122)
+        const scrMax = new THREE.Vector2(0.743, 1.120)
 
         // Phone body material — transparent in screen area
         let phoneShaderRef = null
@@ -63,7 +61,7 @@ export function loadPhone(scene, lcdTexture) {
           roughness: 0.75,
           clearcoat: 0.05,
           clearcoatRoughness: 1,
-          envMapIntensity: 0.85,
+          envMapIntensity: 1.1,
           transparent: true,
           side: THREE.DoubleSide,
         })
@@ -78,42 +76,56 @@ export function loadPhone(scene, lcdTexture) {
           shader.uniforms.bezelZThreshold = { value: 0.30 }
           shader.uniforms.debugZones = { value: 0 }
 
+          // Button press deformation
+          shader.uniforms.pressMin = { value: new THREE.Vector2(0, 0) }
+          shader.uniforms.pressMax = { value: new THREE.Vector2(0, 0) }
+          shader.uniforms.pressAmount = { value: 0.0 }
+
+          // Bezel frame zone (raised area around screen)
+          shader.uniforms.topZoneDarken = { value: 0.45 }
+          shader.uniforms.topZoneTint = { value: new THREE.Vector3(1, 1, 1) }
+          shader.uniforms.topZoneAlpha = { value: 1.0 }
+
           // Pass group-local position to fragment shader
           shader.vertexShader = shader.vertexShader.replace(
             'void main() {',
-            'uniform mat4 invGroupMatrix;\nvarying vec3 vGroupPos;\nvoid main() {'
+            'uniform mat4 invGroupMatrix;\nuniform vec2 pressMin;\nuniform vec2 pressMax;\nuniform float pressAmount;\nvarying vec3 vGroupPos;\nvoid main() {'
           )
           shader.vertexShader = shader.vertexShader.replace(
             '#include <worldpos_vertex>',
-            '#include <worldpos_vertex>\nvGroupPos = (invGroupMatrix * modelMatrix * vec4(transformed, 1.0)).xyz;'
+            `#include <worldpos_vertex>
+            vGroupPos = (invGroupMatrix * modelMatrix * vec4(transformed, 1.0)).xyz;
+            if (pressAmount > 0.001) {
+              bool inPress = vGroupPos.x > pressMin.x && vGroupPos.x < pressMax.x &&
+                             vGroupPos.y > pressMin.y && vGroupPos.y < pressMax.y;
+              if (inPress) {
+                transformed -= normal * pressAmount * 0.025;
+              }
+            }`
           )
 
           // Make screen area transparent + darken raised bezel elements
           shader.fragmentShader = shader.fragmentShader.replace(
             'void main() {',
-            'varying vec3 vGroupPos;\nuniform vec2 scrMin;\nuniform vec2 scrMax;\nuniform float bezelDarken;\nuniform float bezelZThreshold;\nuniform float debugZones;\nvoid main() {'
+            'varying vec3 vGroupPos;\nuniform vec2 scrMin;\nuniform vec2 scrMax;\nuniform float bezelDarken;\nuniform float bezelZThreshold;\nuniform float debugZones;\nuniform float topZoneDarken;\nuniform vec3 topZoneTint;\nuniform float topZoneAlpha;\nvoid main() {'
           )
           shader.fragmentShader = shader.fragmentShader.replace(
             '#include <dithering_fragment>',
             `#include <dithering_fragment>
+            if (!gl_FrontFacing) discard;
             bool inScreen = vGroupPos.x > scrMin.x && vGroupPos.x < scrMax.x &&
-                            vGroupPos.y > scrMin.y && vGroupPos.y < scrMax.y &&
-                            vGroupPos.z > 0.1;
+                            vGroupPos.y > scrMin.y && vGroupPos.y < scrMax.y;
             bool isRaised = vGroupPos.z > bezelZThreshold;
+            bool inBezelFrame = isRaised && !inScreen;
             if (debugZones > 0.5) {
-              // Debug: color-code zones
-              // Red = screen transparency window
-              // Blue = raised bezel (z > threshold)
-              // Green = Z depth heatmap (brighter = closer to camera)
               float zNorm = clamp(vGroupPos.z / 0.5, 0.0, 1.0);
               gl_FragColor.rgb = vec3(zNorm * 0.3, zNorm * 0.5, zNorm * 0.2);
               gl_FragColor.a = 1.0;
               if (inScreen) {
                 gl_FragColor.rgb = vec3(1.0, 0.1, 0.1);
-              } else if (isRaised) {
-                gl_FragColor.rgb = vec3(0.1, 0.2, 1.0) * (0.5 + zNorm * 0.5);
+              } else if (inBezelFrame) {
+                gl_FragColor.rgb = vec3(0.9, 0.2, 0.9);
               }
-              // Outline the screen rect edges
               float edgeDist = min(
                 min(abs(vGroupPos.x - scrMin.x), abs(vGroupPos.x - scrMax.x)),
                 min(abs(vGroupPos.y - scrMin.y), abs(vGroupPos.y - scrMax.y))
@@ -123,10 +135,12 @@ export function loadPhone(scene, lcdTexture) {
               }
             } else {
               if (inScreen) {
-                gl_FragColor.rgb = vec3(0.0);
-                gl_FragColor.a = 0.08;
-              } else if (isRaised) {
-                gl_FragColor.rgb *= bezelDarken;
+                // Clear plastic cover — keep PBR reflections, see through to LCD
+                gl_FragColor.rgb = min(gl_FragColor.rgb, vec3(0.6));
+                gl_FragColor.a = 0.09;
+              } else if (inBezelFrame) {
+                gl_FragColor.rgb *= topZoneDarken * topZoneTint;
+                gl_FragColor.a *= topZoneAlpha;
               }
             }`
           )
@@ -152,6 +166,7 @@ export function loadPhone(scene, lcdTexture) {
         const screenMaterial = new THREE.MeshBasicMaterial({
           map: lcdTexture,
           toneMapped: false,
+          depthWrite: false,
         })
         screenMaterial.onBeforeCompile = (shader) => {
           screenShaderRef = shader
@@ -178,17 +193,27 @@ export function loadPhone(scene, lcdTexture) {
         }
         const screenMesh = new THREE.Mesh(screenPlane, screenMaterial)
         screenMesh.renderOrder = 1
-        screenMesh.position.copy(screenPos)
-        screenMesh.scale.set(1.045, 0.975, 1)
-        screenMesh.position.y = 0.605
-        screenMesh.position.z = 0.281
+        screenMesh.position.set(0, 0.604, 0.312)
+        screenMesh.scale.set(1.02, 0.975, 1)
         screenMesh.layers.enable(1) // receive screenGlow light (on layer 1)
         phoneGroup.add(screenMesh)
 
+        // Dark backing plane behind the screen — covers full transparency window to block light bleed
+        const backingW = (scrMax.x - scrMin.x) + 0.06 // transparency window width + margin
+        const backingH = (scrMax.y - scrMin.y) + 0.06
+        const backingCX = (scrMin.x + scrMax.x) / 2
+        const backingCY = (scrMin.y + scrMax.y) / 2
+        const backingGeo = new THREE.PlaneGeometry(backingW, backingH)
+        const backingMat = new THREE.MeshBasicMaterial({ color: 0x0a0a0a, toneMapped: false })
+        const backingMesh = new THREE.Mesh(backingGeo, backingMat)
+        backingMesh.position.set(backingCX, backingCY, 0.08)
+        backingMesh.renderOrder = 0
+        phoneGroup.add(backingMesh)
+
         // Screen glow light — layer 1 so it only illuminates the screen mesh,
         // not the phone body (bezel elements very close to the light would blow out)
-        const screenGlow = new THREE.PointLight(0xaabb88, 0.4, 3)
-        screenGlow.position.set(screenPos.x, screenPos.y, screenPos.z + 0.3)
+        const screenGlow = new THREE.PointLight(0xaabb88, 0.15, 2.7)
+        screenGlow.position.set(0, 0.604, 0.612)
         screenGlow.layers.set(1)
         phoneGroup.add(screenGlow)
 

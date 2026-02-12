@@ -85,7 +85,10 @@
       "Bash(gh auth status:*)",
       "Bash(gh repo create:*)",
       "Bash(git -C /Users/oddurs/Code/nokia-snake add -A)",
-      "Bash(git -C /Users/oddurs/Code/nokia-snake status --short)"
+      "Bash(git -C /Users/oddurs/Code/nokia-snake status --short)",
+      "Bash(git -C /Users/oddurs/Code/nokia-snake commit -m \"$\\(cat <<''EOF''\nInitial commit — Nokia 3310 Snake II web experience\n\n3D Nokia 3310 with playable Snake II on the LCD screen, built with Three.js.\nFeatures faithful game logic, pixel-perfect Nokia font rendering, HDRI environments,\ninternet radio, and a Win98-style about page.\nEOF\n\\)\")",
+      "Bash(git -C /Users/oddurs/Code/nokia-snake push -u origin main)",
+      "Bash(xargs kill:*)"
     ]
   }
 }
