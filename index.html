@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐍</text></svg>">
+  <title>Nokia 3310 — Snake</title>
+  <style>
+    @font-face {
+      font-family: "Nokia";
+      src: url("/fonts/NokjaOriginalSmallBold.woff2") format("woff2");
+      font-weight: normal;
+      font-style: normal;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #111; }
+    canvas { display: block; }
+#loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+      background: #111;
+      z-index: 20;
+      transition: opacity 0.6s ease-out;
+    }
+    #loading.hidden { opacity: 0; pointer-events: none; }
+
+    /* Snake loader: segments chase around a rounded-rect track */
+    .loader-snake { width: 64px; height: 64px; }
+    .loader-track {
+      fill: none;
+      stroke: #1a1a1a;
+      stroke-width: 6;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .loader-seg {
+      fill: none;
+      stroke-width: 6;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-dasharray: 40 152;
+      animation: snake-chase 1.6s linear infinite;
+    }
+    .loader-seg-1 { stroke: #67743c; animation-delay: 0s; }
+    .loader-seg-2 { stroke: #8b956a; animation-delay: -0.4s; }
+    .loader-seg-3 { stroke: #4a5530; animation-delay: -0.8s; }
+    @keyframes snake-chase {
+      0%   { stroke-dashoffset: 0; }
+      100% { stroke-dashoffset: -192; }
+    }
+
+    .loader-text {
+      font-family: "Nokia", 'Courier New', monospace;
+      font-size: 14px;
+      color: #67743c;
+      letter-spacing: 2px;
+      animation: loader-pulse 2s ease-in-out infinite;
+      -webkit-font-smoothing: none;
+    }
+    @keyframes loader-pulse {
+      0%, 100% { opacity: 0.4; }
+      50%      { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <svg class="loader-snake" viewBox="0 0 64 64">
+      <rect class="loader-track" x="8" y="8" width="48" height="48" rx="12" ry="12"/>
+      <rect class="loader-seg loader-seg-1" x="8" y="8" width="48" height="48" rx="12" ry="12"/>
+      <rect class="loader-seg loader-seg-2" x="8" y="8" width="48" height="48" rx="12" ry="12"/>
+      <rect class="loader-seg loader-seg-3" x="8" y="8" width="48" height="48" rx="12" ry="12"/>
+    </svg>
+    <span class="loader-text">NOKIA</span>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
