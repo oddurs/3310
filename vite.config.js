@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-  base: '/3310/',
+  base: '/',
   assetsInclude: ['**/*.fbx'],
   server: {
     port: 3310,
